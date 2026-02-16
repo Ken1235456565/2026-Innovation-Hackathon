@@ -1,25 +1,13 @@
-<!-- Please replace anything appearing between curly brackets with your submission's value.  -->
+---
+title: AI Northeastern Hackathon
+emoji: 🏢
+colorFrom: pink
+colorTo: pink
+sdk: gradio
+sdk_version: 6.5.1
+app_file: app.py
+pinned: false
+short_description: ClimaHealth
+---
 
-# { Project Name }
-
-{ A quick one line explanation of your project. }
-
-## Details
-
-- { What problem does this project solve? }
-- { Did you use any interesting libraries or services? }
-- { What extension type(s) did you build? }
-- { If given longer, what would be the next improvement you would make? }
-
-## Set Up Instructions
-
-{ Include any instructions required to set up this submission - including any registrations for third-party services. }
-
-## Screenshots
-
-{ Include at least one screenshot or video. }
-
-## Collaborators
-
-- { GitHub Username 1 }
-- { Add more as appropriate }
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference

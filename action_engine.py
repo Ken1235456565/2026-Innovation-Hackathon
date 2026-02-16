@@ -1,0 +1,433 @@
+"""
+Action Execution Engine
+将建议转化为可执行的行动包
+"""
+
+import json
+import os
+from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+import io
+
+class ActionEngine:
+    """
+    将每个推荐转化为可执行的行动包
+    """
+    
+    def __init__(self):
+        self.action_templates = {
+            "unemployment_filing": {
+                "friction_score": 4,
+                "time_hours": 2,
+                "impact_dollars": 0,
+                "steps": [
+                    {"order": "P", "action": "generate_filing_packet", "label": "Generate Filing Packet"},
+                    {"order": "S", "action": "draft_employer_notice", "label": "Draft Employer Notification"},
+                    {"order": "A", "action": "set_reminder", "label": "Set 48h Reminder", "automated": True}
+                ]
+            },
+            "clinic_visit": {
+                "friction_score": 2,
+                "time_hours": 1.5,
+                "impact_dollars": 800,
+                "steps": [
+                    {"order": "P", "action": "show_clinic_map", "label": "View Clinic Map & Wait Times"},
+                    {"order": "S", "action": "prefill_triage", "label": "Pre-fill Triage Form"},
+                    {"order": "A", "action": "notify_contacts", "label": "Notify Household Contacts", "automated": True}
+                ]
+            },
+            "food_aid": {
+                "friction_score": 4,
+                "time_hours": 3,
+                "impact_dollars": 240,
+                "steps": [
+                    {"order": "P", "action": "digital_application", "label": "Submit Digital Application"},
+                    {"order": "S", "action": "upload_documents", "label": "Upload Proof of Residency"},
+                    {"order": "A", "action": "check_status", "label": "Check Application Status", "automated": True}
+                ]
+            },
+            "emergency_loan": {
+                "friction_score": 1,
+                "time_hours": 0.5,
+                "impact_dollars": 500,
+                "steps": [
+                    {"order": "P", "action": "instant_apply", "label": "Apply via Mobile Money"},
+                    {"order": "S", "action": "verify_eligibility", "label": "Check Eligibility"},
+                    {"order": "A", "action": "auto_repayment", "label": "Set Auto-Repayment", "automated": True}
+                ]
+            }
+        }
+        
+        # 存储用户行动状态
+        self.user_actions = {}
+    
+    def calculate_impact_friction_ratio(self, action_type):
+        """计算 Impact / (Time × Friction)"""
+        template = self.action_templates.get(action_type, {})
+        impact = template.get("impact_dollars", 0)
+        time = template.get("time_hours", 1)
+        friction = template.get("friction_score", 1)
+        
+        if time * friction == 0:
+            return 0
+        
+        return round(impact / (time * friction), 2)
+    
+    def generate_filing_packet(self, user_data, disease, region):
+        """生成预填充的失业申请文件"""
+        
+        # 创建PDF
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        
+        # 标题
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(50, height - 50, "Emergency Disease-Related Work Leave Filing")
+        
+        # 用户信息
+        p.setFont("Helvetica", 10)
+        y = height - 100
+        
+        fields = [
+            ("Applicant Name", user_data.get("name", "[YOUR NAME]")),
+            ("Region", region),
+            ("Disease Incident", disease),
+            ("Date of Filing", datetime.now().strftime("%Y-%m-%d")),
+            ("Reason", f"Unable to work due to {disease} outbreak in {region}"),
+            ("Expected Duration", "5-14 days (pending medical clearance)"),
+            ("Household Income Impact", f"${user_data.get('daily_income', 35)} per day"),
+            ("Contact Number", user_data.get("phone", "[YOUR PHONE]")),
+        ]
+        
+        for label, value in fields:
+            p.drawString(50, y, f"{label}:")
+            p.drawString(250, y, str(value))
+            y -= 25
+        
+        # 说明文字
+        y -= 30
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(50, y, "INSTRUCTIONS:")
+        y -= 20
+        p.setFont("Helvetica", 9)
+        instructions = [
+            "1. Sign this document in the box below",
+            "2. Submit to your employer within 48 hours",
+            "3. Keep a copy for your records",
+            "4. Follow up with HR department after 3 business days"
+        ]
+        for instruction in instructions:
+            p.drawString(60, y, instruction)
+            y -= 20
+        
+        # 签名区
+        y -= 30
+        p.line(50, y, 300, y)
+        p.drawString(50, y - 15, "Signature")
+        p.drawString(320, y, "Date: ________________")
+        
+        # 页脚
+        p.setFont("Helvetica-Oblique", 8)
+        p.drawString(50, 30, f"Generated by ClimaHealth AI on {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        
+        p.showPage()
+        p.save()
+        
+        buffer.seek(0)
+        return buffer.getvalue()
+    
+    def draft_employer_notice(self, user_data, disease, region):
+        """生成雇主通知信"""
+        
+        notice = f"""
+Subject: Emergency Medical Leave Notification - {disease} Outbreak
+
+Dear [Employer Name],
+
+I am writing to inform you that I am unable to report to work due to a {disease} outbreak in {region}. 
+
+Health Status:
+- Current Symptoms: [Describe if applicable]
+- Medical Recommendation: Immediate rest and monitoring
+- Expected Return: 5-14 days pending medical clearance
+
+This outbreak has been confirmed by ClimaHealth AI's disease surveillance system with a risk score of [RISK_SCORE]/100.
+
+I am attaching:
+1. Emergency leave filing form
+2. ClimaHealth AI risk assessment report
+3. Contact information for local health authorities
+
+I will:
+- Keep you updated on my health status every 48 hours
+- Provide medical clearance before returning
+- Make up missed work if company policy requires
+
+Emergency Contact: {user_data.get("phone", "[YOUR PHONE]")}
+
+I appreciate your understanding during this public health emergency.
+
+Respectfully,
+{user_data.get("name", "[YOUR NAME]")}
+{datetime.now().strftime("%Y-%m-%d")}
+
+---
+Generated by ClimaHealth AI Emergency Response System
+        """
+        
+        return notice.strip()
+    
+    def generate_clinic_map_data(self, region, disease):
+        """生成诊所地图数据（使用OpenStreetMap）"""
+        
+        region_coords = {
+            "Nairobi, Kenya": {"lat": -1.286389, "lon": 36.817223},
+            "Lagos, Nigeria": {"lat": 6.5244, "lon": 3.3792},
+            "Chittagong, Bangladesh": {"lat": 22.3569, "lon": 91.7832},
+            "Dhaka, Bangladesh": {"lat": 23.8103, "lon": 90.4125}
+        }
+        
+        coord = region_coords.get(region, {"lat": 0, "lon": 0})
+        
+        # 生成Google Maps链接
+        maps_url = f"https://www.google.com/maps/search/{disease}+clinic/@{coord['lat']},{coord['lon']},13z"
+        
+        # OpenStreetMap链接
+        osm_url = f"https://www.openstreetmap.org/#map=13/{coord['lat']}/{coord['lon']}"
+        
+        return {
+            "google_maps": maps_url,
+            "openstreetmap": osm_url,
+            "coordinates": coord,
+            "search_query": f"{disease} clinic near me"
+        }
+    
+    def prefill_triage_form(self, user_data, disease):
+        """生成预填充的诊所分诊表"""
+        
+        form = f"""
+═══════════════════════════════════════════════
+        EMERGENCY TRIAGE PRE-FILL FORM
+═══════════════════════════════════════════════
+
+Patient Information:
+├─ Name: {user_data.get("name", "[YOUR NAME]")}
+├─ Age: {user_data.get("age", "[AGE]")}
+├─ Contact: {user_data.get("phone", "[PHONE]")}
+└─ Address: {user_data.get("address", "[ADDRESS]")}
+
+Chief Complaint:
+└─ Suspected {disease} exposure in high-risk area
+
+Risk Assessment:
+├─ Disease Risk Score: {user_data.get("risk_score", 0)}/100
+├─ Outbreak Probability: {user_data.get("outbreak_prob", 0):.0%}
+└─ Urgency Level: {"CRITICAL" if user_data.get("risk_score", 0) >= 80 else "HIGH"}
+
+Symptoms (Check all that apply):
+□ Fever (>38°C)
+□ Severe headache
+□ Muscle pain
+□ Nausea/vomiting
+□ Difficulty breathing
+□ Other: ___________________
+
+Exposure History:
+└─ Region: {user_data.get("region", "[REGION]")}
+└─ Exposure Duration: Last 7-14 days
+└─ Known Cases in Area: YES (confirmed by AI surveillance)
+
+Insurance/Payment:
+└─ Type: [INSURANCE NAME or "Self-Pay"]
+└─ ID Number: ___________________
+
+═══════════════════════════════════════════════
+        BRING THIS FORM TO CLINIC
+═══════════════════════════════════════════════
+
+Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+Valid for: 48 hours
+        """
+        
+        return form
+    
+    def create_reminder(self, action_name, hours_until):
+        """创建提醒"""
+        
+        reminder_time = datetime.now() + timedelta(hours=hours_until)
+        
+        return {
+            "action": action_name,
+            "reminder_time": reminder_time.isoformat(),
+            "status": "pending",
+            "message": f"⏰ Reminder: Complete {action_name} by {reminder_time.strftime('%Y-%m-%d %H:%M')}"
+        }
+    
+    def mark_action_complete(self, user_id, action_id):
+        """标记行动完成"""
+        
+        if user_id not in self.user_actions:
+            self.user_actions[user_id] = {}
+        
+        self.user_actions[user_id][action_id] = {
+            "status": "completed",
+            "completed_at": datetime.now().isoformat()
+        }
+        
+        return True
+    
+    def calculate_updated_runway(self, original_runway, completed_actions, action_impacts):
+        """重新计算完成行动后的财务跑道"""
+        
+        total_savings = 0
+        for action_id in completed_actions:
+            impact = action_impacts.get(action_id, 0)
+            total_savings += impact
+        
+        # 假设每日消耗
+        daily_burn = 35 * 0.85  # 假设收入的85%用于支出
+        
+        if daily_burn > 0:
+            additional_days = total_savings / daily_burn
+            new_runway = original_runway + additional_days
+        else:
+            new_runway = original_runway
+        
+        return int(new_runway), total_savings
+    
+    def generate_action_package(self, action_type, user_data, disease, region, risk_score):
+        """生成完整的行动包"""
+        
+        template = self.action_templates.get(action_type, {})
+        
+        package = {
+            "action_type": action_type,
+            "friction_score": template.get("friction_score", 1),
+            "time_hours": template.get("time_hours", 1),
+            "impact_dollars": template.get("impact_dollars", 0),
+            "impact_friction_ratio": self.calculate_impact_friction_ratio(action_type),
+            "steps": template.get("steps", []),
+            "generated_files": {},
+            "status": "pending"
+        }
+        
+        # 根据action_type生成具体文件
+        if action_type == "unemployment_filing":
+            package["generated_files"]["filing_packet"] = "PDF generated"
+            package["generated_files"]["employer_notice"] = self.draft_employer_notice(user_data, disease, region)
+            package["generated_files"]["reminder"] = self.create_reminder("Submit Filing", 24)
+        
+        elif action_type == "clinic_visit":
+            package["generated_files"]["map_data"] = self.generate_clinic_map_data(region, disease)
+            package["generated_files"]["triage_form"] = self.prefill_triage_form(
+                {**user_data, "risk_score": risk_score}, disease
+            )
+            package["generated_files"]["reminder"] = self.create_reminder("Visit Clinic", 4)
+        
+        elif action_type == "food_aid":
+            package["generated_files"]["application_link"] = "Application portal ready"
+            package["generated_files"]["document_checklist"] = [
+                "Proof of residency (utility bill or lease)",
+                "Government-issued ID",
+                "Proof of income (last 3 months)",
+                "Household composition form"
+            ]
+        
+        return package
+
+
+class ActionTracker:
+    """追踪用户行动进度"""
+    
+    def __init__(self):
+        self.storage_file = "user_actions.json"
+        self.load_state()
+    
+    def load_state(self):
+        """加载存储的状态"""
+        if os.path.exists(self.storage_file):
+            with open(self.storage_file, 'r') as f:
+                self.state = json.load(f)
+        else:
+            self.state = {}
+    
+    def save_state(self):
+        """保存状态"""
+        with open(self.storage_file, 'w') as f:
+            json.dump(self.state, f, indent=2)
+    
+    def initialize_user_session(self, user_id, actions):
+        """初始化用户会话"""
+        if user_id not in self.state:
+            self.state[user_id] = {
+                "created_at": datetime.now().isoformat(),
+                "actions": {},
+                "runway_history": []
+            }
+        
+        for action in actions:
+            action_id = f"{action['action_type']}_{datetime.now().timestamp()}"
+            self.state[user_id]["actions"][action_id] = {
+                "action_type": action["action_type"],
+                "status": "pending",
+                "created_at": datetime.now().isoformat(),
+                "completed_at": None,
+                "impact_dollars": action.get("impact_dollars", 0)
+            }
+        
+        self.save_state()
+        return list(self.state[user_id]["actions"].keys())
+    
+    def mark_complete(self, user_id, action_id):
+        """标记行动完成"""
+        if user_id in self.state and action_id in self.state[user_id]["actions"]:
+            self.state[user_id]["actions"][action_id]["status"] = "completed"
+            self.state[user_id]["actions"][action_id]["completed_at"] = datetime.now().isoformat()
+            self.save_state()
+            return True
+        return False
+    
+    def mark_skipped(self, user_id, action_id):
+        """标记行动跳过"""
+        if user_id in self.state and action_id in self.state[user_id]["actions"]:
+            self.state[user_id]["actions"][action_id]["status"] = "skipped"
+            self.save_state()
+            return True
+        return False
+    
+    def get_progress(self, user_id):
+        """获取进度统计"""
+        if user_id not in self.state:
+            return {"completed": 0, "pending": 0, "skipped": 0, "total": 0}
+        
+        actions = self.state[user_id]["actions"]
+        stats = {
+            "completed": sum(1 for a in actions.values() if a["status"] == "completed"),
+            "pending": sum(1 for a in actions.values() if a["status"] == "pending"),
+            "skipped": sum(1 for a in actions.values() if a["status"] == "skipped"),
+            "total": len(actions)
+        }
+        
+        return stats
+    
+    def calculate_runway_impact(self, user_id, original_runway, daily_burn):
+        """计算完成行动后的跑道影响"""
+        if user_id not in self.state:
+            return original_runway, 0
+        
+        completed_impact = sum(
+            action.get("impact_dollars", 0)
+            for action in self.state[user_id]["actions"].values()
+            if action["status"] == "completed"
+        )
+        
+        if daily_burn > 0:
+            additional_days = completed_impact / daily_burn
+            new_runway = original_runway + additional_days
+        else:
+            new_runway = original_runway
+        
+        return int(new_runway), completed_impact
