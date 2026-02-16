@@ -1,4 +1,4 @@
-# 🌡 ClimaHealth AI
+# ClimaHealth AI
 
 ### Climate-Driven Disease Outbreak Early Warning System
 
@@ -122,41 +122,35 @@ Open `frontend/climahealth.jsx` as a React artifact or component.
 ---
 
 ## Project Structure
-
+```
 climahealth-ai/
-│
-├── README.md                          # This file
-├── PROPOSAL.md                        # Full hackathon proposal + demo script
-│
+├── README.md
+├── PROPOSAL.md
 ├── backend/
-│   ├── fetch_real_data.py             # Fetches real data from NASA/WHO/GDELT APIs
-│   ├── train.py                       # Train models on synthetic data
-│   ├── train_real.py                  # Train models on real API data
-│   ├── requirements.txt               # Python dependencies
-│   │
+│   ├── fetch_real_data.py
+│   ├── train.py
+│   ├── train_real.py
+│   ├── requirements.txt
 │   ├── models/
-│   │   ├── climate_forecaster.py      # LSTM + Prophet forecasting
-│   │   ├── disease_predictor.py       # Ensemble classifier
-│   │   ├── disease_modules/           # NEW: Disease-specific modules
-│   │   │   ├── malaria_model.py       # Gaussian temperature response
-│   │   │   ├── dengue_model.py        # Precipitation lag + urbanization
-│   │   │   └── cholera_model.py       # Flood events + water quality
-│   │   ├── nlp_detector.py            # Enhanced multi-disease TF-IDF
-│   │   └── ensemble.py                # Dynamic weighted risk scoring
-│   │
+│   │   ├── climate_forecaster.py
+│   │   ├── disease_predictor.py
+│   │   └── disease_modules/
+│   │       ├── malaria_model.py
+│   │       ├── dengue_model.py
+│   │       ├── cholera_model.py
+│   │       ├── nlp_detector.py
+│   │       └── ensemble.py
 │   ├── data/
-│   │   └── generate_training_data.py  # Synthetic data generator
-│   │
+│   │   └── generate_training_data.py
 │   ├── api/
-│   │   └── main.py                    # FastAPI REST API
-│   │
-│   └── saved_models/                  # Pre-trained model files
+│   │   └── main.py
+│   └── saved_models/
 │       ├── climate_forecaster.pkl
 │       ├── disease_predictor.pkl
 │       └── nlp_detector.pkl
-│
 └── frontend/
-    └── climahealth.jsx                # React interactive dashboard
+    └── climahealth.jsx
+```
 
 ---
 
