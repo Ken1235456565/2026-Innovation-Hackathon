@@ -1,0 +1,23 @@
+# ClimaHealth AI — Dependencies
+# Core ML
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+joblib>=1.3.0
+
+# Explainability
+shap>=0.43.0
+
+# API
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+
+# Optional: Deep learning (for LSTM climate model upgrade)
+# torch>=2.0.0
+# prophet>=1.1.0
+
+# Optional: Production NLP (upgrade from TF-IDF)
+# transformers>=4.35.0
+# anthropic>=0.7.0
